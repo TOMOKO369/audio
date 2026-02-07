@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Sparkles, Copy, Check, Settings, MessageSquarePlus } from 'lucide-react';
+import { Sparkles, Copy, Check, Settings, MessageSquarePlus, Loader2 } from 'lucide-react';
 
 const NoteGenerator = ({ transcript }) => {
     const [apiKey, setApiKey] = useState('');
@@ -12,8 +13,43 @@ const NoteGenerator = ({ transcript }) => {
     const [copiedTitle, setCopiedTitle] = useState(false);
     const [copiedBody, setCopiedBody] = useState(false);
 
-    const handleGenerate = async () => {
+    // New State for Refinement
+    const [refinedText, setRefinedText] = useState('');
+    const [isRefining, setIsRefining] = useState(false);
+
+    const handleRefine = async () => {
         if (!transcript) return;
+        setIsRefining(true);
+        setError('');
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/refine_text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transcript,
+                    api_key: apiKey || undefined,
+                    base_url: baseUrl || undefined,
+                    model: model || 'gpt-3.5-turbo',
+                }),
+            });
+
+            if (!response.ok) throw new Error('Refinement failed');
+            const data = await response.json();
+            setRefinedText(data.refined_text);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to refine text.");
+        } finally {
+            setIsRefining(false);
+        }
+    };
+
+    const handleGenerate = async () => {
+        // Use refined text if available, otherwise raw transcript
+        const sourceText = refinedText || transcript;
+
+        if (!sourceText) return;
         setIsLoading(true);
         setError('');
         setGeneratedNote(null);
@@ -25,7 +61,7 @@ const NoteGenerator = ({ transcript }) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    transcript,
+                    transcript: sourceText,
                     api_key: apiKey || undefined,
                     base_url: baseUrl || undefined,
                     model: model || 'gpt-3.5-turbo',
@@ -119,26 +155,56 @@ const NoteGenerator = ({ transcript }) => {
                 </div>
             )}
 
-            {/* Generate Button */}
-            {!generatedNote && (
+            {/* 1. Refine Text Step */}
+            <div className="mb-8">
+                <label className="text-xs text-purple-600 font-bold mb-2 block uppercase tracking-wider">
+                    Step 1: Refine Tone (Soft & Polite)
+                </label>
+
+                {/* Textarea for Refined Text */}
+                <textarea
+                    value={refinedText || (isRefining ? "Refining text..." : "")}
+                    onChange={(e) => setRefinedText(e.target.value)}
+                    placeholder="Original transcript will be used if not refined. Click 'Refine Text' to make it softer."
+                    className="w-full h-40 bg-white/80 border border-purple-100 p-4 rounded-xl text-slate-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-200 mb-2 resize-y"
+                    disabled={isRefining}
+                />
+
                 <button
-                    onClick={handleGenerate}
-                    disabled={isLoading}
-                    className="w-full btn-primary py-3 flex justify-center items-center gap-2 font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-200"
+                    onClick={handleRefine}
+                    disabled={isRefining || isLoading}
+                    className="btn-secondary w-full md:w-auto text-sm flex justify-center items-center gap-2"
                 >
-                    {isLoading ? (
-                        <>
-                            <Sparkles className="animate-spin" size={20} />
-                            Creating Magic...
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles size={20} />
-                            Generate Note Article
-                        </>
-                    )}
+                    {isRefining ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                    {refinedText ? "Re-Refine Text" : "Refine Text (Make it Soft)"}
                 </button>
-            )}
+            </div>
+
+            {/* 2. Generate Note Step */}
+            <div className="mb-4">
+                <label className="text-xs text-purple-600 font-bold mb-2 block uppercase tracking-wider">
+                    Step 2: Generate Note Article
+                </label>
+                {!generatedNote && (
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isLoading || isRefining}
+                        className="w-full btn-primary py-3 flex justify-center items-center gap-2 font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-200"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Sparkles className="animate-spin" size={20} />
+                                Creating Magic...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles size={20} />
+                                Generate Note Article
+                            </>
+                        )}
+                    </button>
+                )}
+            </div>
 
             {error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm shadow-sm">
