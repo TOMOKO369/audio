@@ -194,38 +194,50 @@ async def generate_note(request: GenerationRequest):
         
         system_prompt = """
         You are a professional editor for the Japanese media platform 'note'.
-        Your task is to take the provided text (which is already polished) and structure it into a perfect Note article.
+        Your task is to take the provided text and structure it into a perfect Note article.
         
         Rules:
         1. Create a catchy Title based on the content.
         2. Create a well-structured Body with headings (##), bullet points, and clear paragraphs.
         3. The content must be in Japanese.
         4. Maintain the soft, friendly tone ("〜ですよね", "〜ます") of the input text.
-        5. Output strictly valid JSON with keys: "title" and "content".
+        5. IMPORTANT: Output strictly valid JSON with keys: "title" and "content".
         6. Do not include markdown code blocks (```json) in the response, just the raw JSON string.
         """
         
         user_prompt = f"Here is the text to format into a Note article:\n\n{request.transcript[:15000]}" # Truncate if too long
         
-        response = client.chat.completions.create(
-            model=request.model,
-            messages=[
+        # Checking if it's likely a local model that might not support JSON mode
+        is_local = "localhost" in (base_url or "") or "127.0.0.1" in (base_url or "")
+        
+        completion_args = {
+            "model": request.model,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.7,
-            response_format={"type": "json_object"} 
-        )
+            "temperature": 0.7,
+        }
+        
+        # Only add json_object enforcement if likely OpenAI or compatible
+        if not is_local and "gpt" in request.model:
+             completion_args["response_format"] = {"type": "json_object"}
+
+        response = client.chat.completions.create(**completion_args)
         
         content = response.choices[0].message.content
         print("Generation complete.")
         
+        # Clean up code blocks if local model included them
+        clean_content = content.replace("```json", "").replace("```", "").strip()
+        
         try:
-            return json.loads(content)
+            return json.loads(clean_content)
         except json.JSONDecodeError:
-            # Fallback if model didn't output valid JSON
+            print(f"JSON Parse Error. Raw content: {content}")
+            # Fallback: Try to simplistic extraction or just return as content
             return {
-                "title": "Generated Note (Parsing Error)",
+                "title": "Generated Note (Raw Output)",
                 "content": content
             }
             
