@@ -1,18 +1,24 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from google.cloud import speech
-from google.oauth2 import service_account
-from dotenv import load_dotenv
-import json
-import io
+import whisper
 import os
+import tempfile
+import shutil
+import sys
 
-# Load environment variables
-load_dotenv()
+# --- CONFIGURATION & SETUP ---
+
+# Explicitly add FFmpeg to PATH for Windows if not found
+# The path discovered previously:
+ffmpeg_path_dir = r"C:\Users\minib\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin"
+if os.path.exists(ffmpeg_path_dir):
+    os.environ["PATH"] += os.pathsep + ffmpeg_path_dir
+    print(f"Added FFmpeg to PATH: {ffmpeg_path_dir}")
+else:
+    print("Warning: Hardcoded FFmpeg path not found.")
 
 app = FastAPI()
 
-# Allow CORS for development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,88 +27,162 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_credentials(json_str: str = None):
-    """
-    Resolve credentials in the following order:
-    1. Direct JSON string provided by frontend (highest priority for user override)
-    2. GOOGLE_APPLICATION_CREDENTIALS_JSON env var (raw JSON string)
-    3. GOOGLE_APPLICATION_CREDENTIALS env var (path to file) - handled by default Google libs if we pass nothing,
-       but here we want explicit control or validation.
-    """
-    # 1. Frontend provided string
-    if json_str and json_str.strip():
-        try:
-            creds_dict = json.loads(json_str)
-            return service_account.Credentials.from_service_account_info(creds_dict)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid JSON in settings: {str(e)}")
+# Global model state
+current_model_name = "base"
+model = None
 
-    # 2. Env var with raw JSON
-    env_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-    if env_json and env_json.strip():
-        try:
-            creds_dict = json.loads(env_json)
-            return service_account.Credentials.from_service_account_info(creds_dict)
-        except Exception as e:
-            print(f"Server-side credentials error: {e}")
-            # Fallthrough
+def load_verification_model(name: str):
+    global model, current_model_name
+    print(f"Loading Whisper model '{name}'...")
+    try:
+        model = whisper.load_model(name)
+        current_model_name = name
+        print(f"Whisper model '{name}' loaded successfully.")
+    except Exception as e:
+        print(f"CRITICAL ERROR loading model: {e}")
+        raise e
 
-    # 3. Standard Google Env Var (Path)
-    # If GOOGLE_APPLICATION_CREDENTIALS is set, returning None causes Client to use default search path.
-    if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        return None # Let Google Client Library find it
-
-    # If we reached here, we have no credentials
-    return None
+# Initial load
+try:
+    load_verification_model(current_model_name)
+except:
+    pass # Will be handled in request if needed
 
 @app.post("/transcribe")
 async def transcribe_audio(
     file: UploadFile = File(...),
-    credentials_json: str = Form(None) # Made optional
+    model_size: str = Form("base"),
+    language: str = Form(None)
 ):
-    try:
-        credentials = get_credentials(credentials_json)
-        
-        # If credentials is None, it might mean we rely on ADP (Application Default Credentials)
-        # We try to instantiate client. If it fails, we know we lack auth.
+    global model, current_model_name
+    
+    print(f"Received transcription request for file: {file.filename} | Model: {model_size} | Lang: {language}")
+    
+    # Reload model if needed
+    if model is None or model_size != current_model_name:
         try:
-            if credentials:
-                client = speech.SpeechClient(credentials=credentials)
-            else:
-                client = speech.SpeechClient() # Looks for GOOGLE_APPLICATION_CREDENTIALS or default auth
+            load_verification_model(model_size)
         except Exception as e:
-            raise HTTPException(status_code=401, detail="Authentication failed. Please check server logs or provide credentials.")
+             raise HTTPException(status_code=500, detail=f"Failed to load model {model_size}: {str(e)}")
 
-        # Read file content
-        content = await file.read()
+    tmp_path = None
+    try:
+        # Save uploaded file
+        suffix = os.path.splitext(file.filename)[1]
+        if not suffix:
+            suffix = ".tmp"
+            
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
         
-        audio = speech.RecognitionAudio(content=content)
+        print(f"File saved temporarily at: {tmp_path}")
         
-        config = speech.RecognitionConfig(
-            language_code="ja-JP",
-            enable_automatic_punctuation=True,
-        )
+        # Check size
+        fsize = os.path.getsize(tmp_path)
+        print(f"File size: {fsize / 1024 / 1024:.2f} MB")
 
-        filename = file.filename.lower()
-        if filename.endswith(".mp3"):
-             config.encoding = speech.RecognitionConfig.AudioEncoding.MP3
-             config.sample_rate_hertz = 16000
-        elif filename.endswith(".wav"):
-             config.encoding = speech.RecognitionConfig.AudioEncoding.LINEAR16
-
-        response = client.recognize(config=config, audio=audio)
-
-        transcript = ""
-        for result in response.results:
-            transcript += result.alternatives[0].transcript + "\n"
-
+        # Run transcription
+        print("Starting Whisper transcription... (This may take time)")
+        
+        options = {"fp16": False}
+        if language and language != "auto":
+            options["language"] = language
+            
+        result = model.transcribe(tmp_path, **options)
+        print("Transcription complete.")
+        
+        transcript = result["text"]
         return {"transcript": transcript}
-
+            
     except Exception as e:
-        print(f"Error: {e}")
-        # Return generic error if not already HTTP exception
-        if isinstance(e, HTTPException):
-            raise e
+        print(f"Error during transcription: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Server Error: {str(e)}")
+        
+    finally:
+        # Clean up
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except:
+                pass
+
+
+from pydantic import BaseModel
+from openai import OpenAI
+import json
+
+class GenerationRequest(BaseModel):
+    transcript: str
+    api_key: str = None
+    base_url: str = None
+    model: str = "gpt-3.5-turbo"
+
+@app.post("/generate_note")
+async def generate_note(request: GenerationRequest):
+    print(f"Received generation request for model: {request.model}")
+    
+    # Validation
+    api_key = request.api_key or os.environ.get("OPENAI_API_KEY")
+    base_url = request.base_url or os.environ.get("OPENAI_BASE_URL")
+    
+    # If no API key provided and not using a local endpoint that might not need one (like some local setups),
+    # we should check. But some local servers (like Ollama) don't strictly require a key, or use "gsk_..." etc.
+    # We will try to proceed if base_url is set, otherwise require key.
+    if not api_key and not base_url:
+         # Check if using a local model that might not need a key, otherwise warn
+         # For simplicity, if no key and no base_url, we can't hit OpenAI.
+         raise HTTPException(status_code=400, detail="API Key is required for OpenAI, or Base URL for local models.")
+    
+    if not api_key: 
+        api_key = "dummy" # Some local servers need a non-empty string
+        
+    try:
+        client = OpenAI(
+            api_key=api_key,
+            base_url=base_url
+        )
+        
+        system_prompt = """
+        You are a professional editor for the Japanese media platform 'note'.
+        Your task is to take a raw transcript and turn it into an engaging, well-structured article.
+        
+        Rules:
+        1. Create a catchy Title.
+        2. Create a well-structured Body with headings (##), bullet points, and clear paragraphs.
+        3. The content must be in Japanese.
+        4. Output strictly valid JSON with keys: "title" and "content".
+        5. Do not include markdown code blocks (```json) in the response, just the raw JSON string.
+        """
+        
+        user_prompt = f"Here is the transcript:\n\n{request.transcript[:15000]}" # Truncate if too long
+        
+        response = client.chat.completions.create(
+            model=request.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            response_format={"type": "json_object"} 
+        )
+        
+        content = response.choices[0].message.content
+        print("Generation complete.")
+        
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            # Fallback if model didn't output valid JSON
+            return {
+                "title": "Generated Note (Parsing Error)",
+                "content": content
+            }
+            
+    except Exception as e:
+        print(f"Error during generation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

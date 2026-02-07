@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Upload, FileAudio, X } from 'lucide-react';
+import { Upload, FileAudio, FileVideo, X } from 'lucide-react';
 
 const FileUpload = ({ onFileSelect }) => {
     const [isDragging, setIsDragging] = useState(false);
@@ -42,15 +42,17 @@ const FileUpload = ({ onFileSelect }) => {
     }
 
     const validateAndSetFile = (file) => {
-        // Check extension
-        const validExtensions = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/x-wav'];
-        // Just simple check on name usually fits better for user experience as mime types vary
+        // Extended validation for MP4 and other common formats
+        const validExtensions = ['.mp3', '.wav', '.mp4', '.m4a', '.ogg', '.webm'];
         const name = file.name.toLowerCase();
-        if (name.endsWith('.mp3') || name.endsWith('.wav')) {
+
+        const isValid = validExtensions.some(ext => name.endsWith(ext));
+
+        if (isValid) {
             setSelectedFile(file);
             onFileSelect(file);
         } else {
-            alert("Please upload MP3 or WAV files.");
+            alert("Supported formats: MP3, WAV, MP4, M4A, OGG, WEBM");
         }
     };
 
@@ -58,6 +60,8 @@ const FileUpload = ({ onFileSelect }) => {
         setSelectedFile(null);
         onFileSelect(null);
     };
+
+    const isVideo = selectedFile && (selectedFile.name.toLowerCase().endsWith('.mp4') || selectedFile.name.toLowerCase().endsWith('.webm'));
 
     return (
         <div className="w-full">
@@ -76,23 +80,27 @@ const FileUpload = ({ onFileSelect }) => {
                         type="file"
                         id="fileInput"
                         className="hidden"
-                        accept=".mp3,.wav"
+                        accept=".mp3,.wav,.mp4,.m4a,.ogg,.webm"
                         onChange={handleDisplayFile}
                     />
                     <div className="bg-purple-500/20 p-4 rounded-full mb-4">
                         <Upload size={40} className="text-purple-300" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">Drag & Drop Audio File</h3>
-                    <p className="text-gray-400 mb-6">or click to browse (MP3, WAV)</p>
+                    <h3 className="text-xl font-semibold mb-2">Drag & Drop Video or Audio</h3>
+                    <p className="text-gray-400 mb-6">or click to browse (MP4, MP3, WAV...)</p>
                     <div className="text-sm text-gray-500 bg-gray-800/50 px-3 py-1 rounded-full">
-                        Max file size: 10MB (Demo)
+                        .mp4 .mp3 .wav .m4a supported
                     </div>
                 </div>
             ) : (
                 <div className="glass-panel p-8 flex items-center justify-between animate-fade-in">
                     <div className="flex items-center gap-4">
-                        <div className="bg-blue-500/20 p-3 rounded-lg">
-                            <FileAudio size={32} className="text-blue-300" />
+                        <div className={`p-3 rounded-lg ${isVideo ? 'bg-indigo-500/20' : 'bg-blue-500/20'}`}>
+                            {isVideo ? (
+                                <FileVideo size={32} className="text-indigo-300" />
+                            ) : (
+                                <FileAudio size={32} className="text-blue-300" />
+                            )}
                         </div>
                         <div className="text-left">
                             <p className="font-semibold text-lg">{selectedFile.name}</p>
