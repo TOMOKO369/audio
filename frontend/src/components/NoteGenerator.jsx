@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { Sparkles, Copy, Check, Settings, MessageSquarePlus, Loader2 } from 'lucide-react';
 
 const NoteGenerator = ({ transcript }) => {
-    const [apiKey, setApiKey] = useState('');
-    const [baseUrl, setBaseUrl] = useState('');
-    const [model, setModel] = useState('gpt-3.5-turbo');
+    // Default to local LLM (Ollama) URL
+    const [baseUrl, setBaseUrl] = useState('http://localhost:11434/v1');
+    const [apiKey, setApiKey] = useState(''); // No key needed for local
+    const [model, setModel] = useState('gemma2:2b'); // Default lightweight model
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [generatedNote, setGeneratedNote] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -28,18 +29,19 @@ const NoteGenerator = ({ transcript }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     transcript,
-                    api_key: apiKey || undefined,
+                    // Send empty string if no key, backend handles "dummy"
+                    api_key: apiKey || "",
                     base_url: baseUrl || undefined,
-                    model: model || 'gpt-3.5-turbo',
+                    model: model || 'gemma2:2b',
                 }),
             });
 
-            if (!response.ok) throw new Error('Refinement failed');
+            if (!response.ok) throw new Error('Refinement failed. Is local LLM running?');
             const data = await response.json();
             setRefinedText(data.refined_text);
         } catch (err) {
             console.error(err);
-            setError("Failed to refine text.");
+            setError("Failed to refine text. Ensure Ollama/Local LLM is running.");
         } finally {
             setIsRefining(false);
         }
@@ -62,9 +64,9 @@ const NoteGenerator = ({ transcript }) => {
                 },
                 body: JSON.stringify({
                     transcript: sourceText,
-                    api_key: apiKey || undefined,
+                    api_key: apiKey || "",
                     base_url: baseUrl || undefined,
-                    model: model || 'gpt-3.5-turbo',
+                    model: model || 'gemma2:2b',
                 }),
             });
 
@@ -77,7 +79,7 @@ const NoteGenerator = ({ transcript }) => {
             setGeneratedNote(data);
         } catch (err) {
             console.error(err);
-            setError(err.message || "Failed to generate note.");
+            setError(err.message || "Failed to generate note. Check LLM connection.");
         } finally {
             setIsLoading(false);
         }
@@ -110,31 +112,26 @@ const NoteGenerator = ({ transcript }) => {
                     className="p-2 hover:bg-white/50 rounded-lg transition-colors text-slate-400 hover:text-purple-600 flex items-center gap-2 text-sm"
                 >
                     <Settings size={16} />
-                    {isSettingsOpen ? 'Hide Settings' : 'LLM Settings'}
+                    {isSettingsOpen ? 'Hide Settings' : 'LLM Settings (Local/OpenAI)'}
                 </button>
             </div>
 
             {/* Settings Section */}
             {isSettingsOpen && (
                 <div className="mb-6 p-6 rounded-xl bg-white/50 border border-white/80 space-y-4 shadow-sm">
-                    <div>
-                        <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">OpenAI API Key (Optional)</label>
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="sk-..."
-                            className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
-                        />
+                    <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 text-xs text-blue-600 mb-2">
+                        <strong>Tip:</strong> For free usage without API Key, use a Local LLM (like Ollama).
+                        <br />Default URL: <code>http://localhost:11434/v1</code>
                     </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Base URL</label>
+                            <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Base URL (Local / OpenAI)</label>
                             <input
                                 type="text"
                                 value={baseUrl}
                                 onChange={(e) => setBaseUrl(e.target.value)}
-                                placeholder="https://api.openai.com/v1"
+                                placeholder="http://localhost:11434/v1"
                                 className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
                             />
                         </div>
@@ -144,14 +141,21 @@ const NoteGenerator = ({ transcript }) => {
                                 type="text"
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
-                                placeholder="gpt-3.5-turbo"
+                                placeholder="gemma2:2b, llama3, gpt-3.5-turbo..."
                                 className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
                             />
                         </div>
                     </div>
-                    <p className="text-xs text-slate-400">
-                        * Leave empty to check backend environment variables (.env).
-                    </p>
+                    <div>
+                        <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">API Key (Optional for Local LLM)</label>
+                        <input
+                            type="password"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            placeholder="sk-... (Leave empty for Local LLM)"
+                            className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
+                        />
+                    </div>
                 </div>
             )}
 

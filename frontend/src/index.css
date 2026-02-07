@@ -21,17 +21,31 @@ body {
   min-width: 320px;
   min-height: 100vh;
 
-  /* Pastel Background Setup */
-  background-color: #fdf2f8;
+  /* Floral Pastel Background */
+  background-color: #fff0f5;
   background-image:
-    radial-gradient(at 0% 0%, #fce7f3 0px, transparent 50%),
-    radial-gradient(at 100% 0%, #e0e7ff 0px, transparent 50%),
-    radial-gradient(at 100% 100%, #ffe4e6 0px, transparent 50%),
-    radial-gradient(at 0% 100%, #dbeafe 0px, transparent 50%);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+    radial-gradient(circle at 20% 20%, rgba(255, 192, 203, 0.6) 0%, transparent 40%),
+    radial-gradient(circle at 80% 30%, rgba(221, 160, 221, 0.5) 0%, transparent 40%),
+    radial-gradient(circle at 40% 70%, rgba(255, 182, 193, 0.5) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(135, 206, 250, 0.4) 0%, transparent 40%),
+    radial-gradient(circle at 10% 80%, rgba(255, 228, 181, 0.5) 0%, transparent 30%);
+  background-size: 180% 180%;
+  animation: floralSway 15s ease-in-out infinite alternate;
   background-attachment: fixed;
+}
+
+@keyframes floralSway {
+  0% {
+    background-position: 0% 0%;
+  }
+
+  50% {
+    background-position: 50% 25%;
+  }
+
+  100% {
+    background-position: 100% 50%;
+  }
 }
 
 #root {
