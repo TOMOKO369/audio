@@ -61,15 +61,17 @@ const NoteGenerator = ({ transcript }) => {
     if (!transcript) return null;
 
     return (
-        <div className="glass-panel w-full p-6 mt-6 animate-fade-in text-left border border-purple-500/20 bg-purple-900/5">
+        <div className="glass-panel w-full p-6 mt-6 animate-fade-in text-left border border-white/60 bg-white/40 shadow-sm">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                    <MessageSquarePlus className="text-purple-300" size={24} />
-                    <h2 className="text-xl font-bold text-white">Note Article Generator</h2>
+                    <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                        <MessageSquarePlus size={20} />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-700">Note Article Generator</h2>
                 </div>
                 <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white flex items-center gap-2 text-sm"
+                    className="p-2 hover:bg-white/50 rounded-lg transition-colors text-slate-400 hover:text-purple-600 flex items-center gap-2 text-sm"
                 >
                     <Settings size={16} />
                     {isSettingsOpen ? 'Hide Settings' : 'LLM Settings'}
@@ -78,41 +80,41 @@ const NoteGenerator = ({ transcript }) => {
 
             {/* Settings Section */}
             {isSettingsOpen && (
-                <div className="mb-6 p-4 rounded-lg bg-black/30 border border-gray-700 space-y-4">
+                <div className="mb-6 p-6 rounded-xl bg-white/50 border border-white/80 space-y-4 shadow-sm">
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1">OpenAI API Key (Optional if using local LLM)</label>
+                        <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">OpenAI API Key (Optional)</label>
                         <input
                             type="password"
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                             placeholder="sk-..."
-                            className="w-full bg-black/50 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                            className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">Base URL (Local LLM / OpenAI)</label>
+                            <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Base URL</label>
                             <input
                                 type="text"
                                 value={baseUrl}
                                 onChange={(e) => setBaseUrl(e.target.value)}
                                 placeholder="https://api.openai.com/v1"
-                                className="w-full bg-black/50 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">Model Name</label>
+                            <label className="block text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Model Name</label>
                             <input
                                 type="text"
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
                                 placeholder="gpt-3.5-turbo"
-                                className="w-full bg-black/50 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                                className="w-full bg-white/80 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-200 transition-all placeholder:text-slate-300"
                             />
                         </div>
                     </div>
-                    <p className="text-xs text-gray-500">
-                        * Leaves keys empty to check backend environment variables (.env).
+                    <p className="text-xs text-slate-400">
+                        * Leave empty to check backend environment variables (.env).
                     </p>
                 </div>
             )}
@@ -122,12 +124,12 @@ const NoteGenerator = ({ transcript }) => {
                 <button
                     onClick={handleGenerate}
                     disabled={isLoading}
-                    className="w-full btn-primary py-3 flex justify-center items-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full btn-primary py-3 flex justify-center items-center gap-2 font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-200"
                 >
                     {isLoading ? (
                         <>
                             <Sparkles className="animate-spin" size={20} />
-                            Generating Content...
+                            Creating Magic...
                         </>
                     ) : (
                         <>
@@ -139,7 +141,7 @@ const NoteGenerator = ({ transcript }) => {
             )}
 
             {error && (
-                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-lg text-sm">
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm shadow-sm">
                     {error}
                 </div>
             )}
@@ -150,36 +152,36 @@ const NoteGenerator = ({ transcript }) => {
 
                     {/* Title Section */}
                     <div className="relative group">
-                        <label className="text-xs text-purple-300 font-semibold mb-1 block uppercase tracking-wider">Title</label>
-                        <div className="bg-black/30 border border-purple-500/30 p-4 rounded-lg text-xl font-bold text-white pr-12">
+                        <label className="text-xs text-purple-600 font-bold mb-2 block uppercase tracking-wider">Title</label>
+                        <div className="bg-white/80 border border-purple-100 p-4 rounded-xl text-xl font-bold text-slate-800 pr-12 shadow-sm">
                             {generatedNote.title}
                         </div>
                         <button
                             onClick={() => copyToClipboard(generatedNote.title, 'title')}
-                            className="absolute top-8 right-2 p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            className="absolute top-9 right-3 p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-purple-600 transition-colors"
                         >
-                            {copiedTitle ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
+                            {copiedTitle ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
                         </button>
                     </div>
 
                     {/* Body Section */}
                     <div className="relative group">
-                        <label className="text-xs text-purple-300 font-semibold mb-1 block uppercase tracking-wider">Content</label>
-                        <div className="bg-black/30 border border-purple-500/30 p-6 rounded-lg text-gray-200 whitespace-pre-wrap leading-relaxed min-h-[200px] pr-12">
+                        <label className="text-xs text-purple-600 font-bold mb-2 block uppercase tracking-wider">Content</label>
+                        <div className="bg-white/80 border border-purple-100 p-6 rounded-xl text-slate-600 whitespace-pre-wrap leading-relaxed min-h-[200px] pr-12 shadow-sm">
                             {generatedNote.content}
                         </div>
                         <button
                             onClick={() => copyToClipboard(generatedNote.content, 'body')}
-                            className="absolute top-8 right-2 p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            className="absolute top-9 right-3 p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-purple-600 transition-colors"
                         >
-                            {copiedBody ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
+                            {copiedBody ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
                         </button>
                     </div>
 
                     <button
                         onClick={handleGenerate}
                         disabled={isLoading}
-                        className="text-sm text-gray-400 hover:text-white underline mt-4"
+                        className="text-sm text-slate-400 hover:text-purple-600 underline mt-4 transition-colors"
                     >
                         Regenerate
                     </button>

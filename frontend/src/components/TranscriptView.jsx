@@ -21,28 +21,28 @@ const TranscriptView = ({ text }) => {
     };
 
     return (
-        <div className="glass-panel w-full p-6 animate-fade-in text-left">
+        <div className="glass-panel w-full p-6 animate-fade-in text-left bg-white/70 border border-white/80">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-purple-200">Transcription Result</h3>
+                <h3 className="text-lg font-bold text-slate-700">Transcription Result</h3>
                 <div className="flex gap-2">
                     <button
                         onClick={handleCopy}
-                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-300 hover:text-white"
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-purple-600"
                         title="Copy to clipboard"
                     >
-                        {copied ? <Check size={20} className="text-green-400" /> : <Copy size={20} />}
+                        {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
                     </button>
                     <button
                         onClick={handleDownload}
-                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-300 hover:text-white"
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-purple-600"
                         title="Download as TXT"
                     >
                         <Download size={20} />
                     </button>
                 </div>
             </div>
-            <div className="bg-black/20 rounded-lg p-4 max-h-[400px] overflow-y-auto border border-gray-700/50">
-                <p className="whitespace-pre-wrap text-gray-200 leading-relaxed">
+            <div className="bg-white/80 rounded-xl p-6 max-h-[400px] overflow-y-auto border border-slate-200 shadow-inner">
+                <p className="whitespace-pre-wrap text-slate-600 leading-relaxed text-sm">
                     {text || "No transcription available."}
                 </p>
             </div>
